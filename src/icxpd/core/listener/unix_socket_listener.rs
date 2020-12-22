@@ -1,4 +1,4 @@
-use crate::consts;
+use crate::commons;
 use std::io::{BufRead, BufReader};
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
@@ -13,7 +13,7 @@ pub struct UnixSocketListener {
 impl UnixSocketListener {
     pub fn new() -> Option<UnixSocketListener> {
         let mut path = dirs::home_dir()?;
-        path.push(consts::WORK_DIR);
+        path.push(commons::WORK_DIR);
         path.push(SOCK_NAME);
         Some(UnixSocketListener {
             sock_path: path,
