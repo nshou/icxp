@@ -1,8 +1,8 @@
+use crate::consts;
 use std::io::{BufRead, BufReader};
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
 
-const WORK_DIR: &str = ".icxp";
 const SOCK_NAME: &str = "icxpd.sock";
 
 pub struct UnixSocketListener {
@@ -13,7 +13,7 @@ pub struct UnixSocketListener {
 impl UnixSocketListener {
     pub fn new() -> Option<UnixSocketListener> {
         let mut path = dirs::home_dir()?;
-        path.push(WORK_DIR);
+        path.push(consts::WORK_DIR);
         path.push(SOCK_NAME);
         Some(UnixSocketListener {
             sock_path: path,
