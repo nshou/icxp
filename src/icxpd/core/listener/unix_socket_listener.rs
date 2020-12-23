@@ -11,12 +11,12 @@ pub struct UnixSocketListener {
 }
 
 impl UnixSocketListener {
-    pub fn new() -> Option<UnixSocketListener> {
-        let mut path = dirs::home_dir()?;
-        path.push(commons::WORK_DIR);
-        path.push(SOCK_NAME);
+    pub fn new(c: &commons::Commons) -> Option<UnixSocketListener> {
+        let work_dir = c.get_work_dir()?;
+        let mut sock_path = PathBuf::from(work_dir);
+        sock_path.push(SOCK_NAME);
         Some(UnixSocketListener {
-            sock_path: path,
+            sock_path,
             running: false,
         })
     }

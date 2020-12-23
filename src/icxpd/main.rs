@@ -6,6 +6,8 @@ use crate::core::listener::unix_socket_listener::UnixSocketListener;
 fn main() {
     println!("Hello, ICXPd!");
 
-    let l = UnixSocketListener::new().unwrap();
+    let c = commons::Commons::init().unwrap();
+
+    let l = UnixSocketListener::new(&c).unwrap();
     l.listen().unwrap();
 }
