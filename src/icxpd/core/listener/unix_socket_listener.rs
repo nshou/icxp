@@ -2,11 +2,13 @@ use crate::commons::Commons;
 use std::io::{BufRead, BufReader};
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
+use std::sync::mpsc::Sender;
 
 const SOCK_NAME: &str = "icxpd.sock";
 
 pub struct UnixSocketListener {
     sock_path: PathBuf,
+    command_sender: Sender<String>,
     running: bool,
 }
 
@@ -17,8 +19,10 @@ impl UnixSocketListener {
             .ok_or(String::from("Unnable to find home directory"))?;
         let mut sock_path = PathBuf::from(work_dir);
         sock_path.push(SOCK_NAME);
+        let command_sender = c.get_command_sender();
         Ok(UnixSocketListener {
             sock_path,
+            command_sender,
             running: false,
         })
     }
@@ -28,7 +32,8 @@ impl UnixSocketListener {
         for stream in listener.incoming() {
             let stream = BufReader::new(stream?);
             for line in stream.lines() {
-                println!("{}", line?)
+                //TODO: define own error type and unify the return type here
+                self.command_sender.send(line?).unwrap();
             }
         }
         Ok(())
