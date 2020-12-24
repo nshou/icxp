@@ -1,4 +1,4 @@
-use crate::commons;
+use crate::commons::Commons;
 use std::io::{BufRead, BufReader};
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
@@ -11,7 +11,7 @@ pub struct UnixSocketListener {
 }
 
 impl UnixSocketListener {
-    pub fn new(c: &commons::Commons) -> Result<UnixSocketListener, String> {
+    pub fn new(c: &Commons) -> Result<UnixSocketListener, String> {
         let work_dir = c
             .get_work_dir()
             .ok_or(String::from("Unnable to find home directory"))?;
