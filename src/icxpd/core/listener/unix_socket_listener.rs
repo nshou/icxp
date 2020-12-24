@@ -11,11 +11,13 @@ pub struct UnixSocketListener {
 }
 
 impl UnixSocketListener {
-    pub fn new(c: &commons::Commons) -> Option<UnixSocketListener> {
-        let work_dir = c.get_work_dir()?;
+    pub fn new(c: &commons::Commons) -> Result<UnixSocketListener, String> {
+        let work_dir = c
+            .get_work_dir()
+            .ok_or(String::from("Unnable to find home directory"))?;
         let mut sock_path = PathBuf::from(work_dir);
         sock_path.push(SOCK_NAME);
-        Some(UnixSocketListener {
+        Ok(UnixSocketListener {
             sock_path,
             running: false,
         })

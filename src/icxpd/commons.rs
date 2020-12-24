@@ -1,6 +1,6 @@
-const WORK_DIR_NAME: &str = ".icxp";
-
 use std::path::PathBuf;
+
+const WORK_DIR_NAME: &str = ".icxp";
 
 pub struct Commons {
     work_dir: PathBuf,
