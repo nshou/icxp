@@ -16,7 +16,7 @@ impl UnixSocketListener {
     pub fn new(c: &Commons) -> Result<UnixSocketListener, String> {
         let work_dir = c
             .get_work_dir()
-            .ok_or(String::from("Unnable to find home directory"))?;
+            .ok_or(String::from("Invalid home directory path"))?;
         let mut sock_path = PathBuf::from(work_dir);
         sock_path.push(SOCK_NAME);
         let command_sender = c.get_command_sender();
