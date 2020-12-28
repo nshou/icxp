@@ -1,8 +1,8 @@
 use std::path::PathBuf;
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
+use tokio::sync::mpsc::{self, Receiver, Sender};
 
 const WORK_DIR_NAME: &str = ".icxp";
+const COMMAND_BRIDGE_QLEN: usize = 128;
 
 pub struct Commons {
     work_dir: PathBuf,
@@ -14,8 +14,7 @@ impl Commons {
         let mut work_dir =
             dirs::home_dir().ok_or(String::from("Unnable to find home directory"))?;
         work_dir.push(WORK_DIR_NAME);
-        let command_bridge = mpsc::channel();
-
+        let command_bridge = mpsc::channel(COMMAND_BRIDGE_QLEN);
         Ok(Commons {
             work_dir,
             command_bridge,
@@ -26,7 +25,7 @@ impl Commons {
         self.work_dir.to_str()
     }
 
-    pub fn get_command_sender(&self) -> Sender<String> {
-        self.command_bridge.0.clone()
+    pub fn get_command_sender(&self) -> &Sender<String> {
+        &self.command_bridge.0
     }
 }

@@ -1,18 +1,18 @@
 use crate::commons::Commons;
-use std::io::{BufRead, BufReader};
-use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
-use std::sync::mpsc::Sender;
+use tokio::io::{self, AsyncBufReadExt, BufReader};
+use tokio::net::{UnixListener, UnixStream};
+use tokio::sync::mpsc::Sender;
 
 const SOCK_NAME: &str = "icxpd.sock";
 
-pub struct UnixSocketListener {
+pub struct UnixSocketListener<'a> {
     sock_path: PathBuf,
-    command_sender: Sender<String>,
-    running: bool,
+    //TODO: define command enum
+    command_sender: &'a Sender<String>,
 }
 
-impl UnixSocketListener {
+impl UnixSocketListener<'_> {
     pub fn new(c: &Commons) -> Result<UnixSocketListener, String> {
         let work_dir = c
             .get_work_dir()
@@ -23,19 +23,33 @@ impl UnixSocketListener {
         Ok(UnixSocketListener {
             sock_path,
             command_sender,
-            running: false,
         })
     }
 
-    pub fn listen(&self) -> std::io::Result<()> {
+    pub async fn listen(&self) -> io::Result<()> {
         let listener = UnixListener::bind(&self.sock_path.as_path())?;
-        for stream in listener.incoming() {
-            let stream = BufReader::new(stream?);
-            for line in stream.lines() {
-                //TODO: define own error type and unify the return type here
-                self.command_sender.send(line?).unwrap();
+        loop {
+            match listener.accept().await {
+                Ok((stream, _addr)) => {
+                    tokio::spawn(UnixSocketListener::handle(
+                        stream,
+                        self.command_sender.clone(),
+                    ));
+                }
+                //TODO: better error handling
+                Err(e) => println!("error: {:?}", e),
             }
         }
-        Ok(())
+    }
+
+    async fn handle(stream: UnixStream, command_sender: Sender<String>) {
+        let reader = BufReader::new(stream);
+        let mut lines = reader.lines();
+        // multiple input lines work as a batch
+        //TODO: define own error type and unify the return type here
+        //TODO: remove unnecessary async mode
+        while let Some(line) = lines.next_line().await.unwrap() {
+            command_sender.send(line).await.unwrap();
+        }
     }
 }
