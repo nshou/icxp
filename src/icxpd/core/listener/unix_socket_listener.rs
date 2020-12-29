@@ -6,6 +6,7 @@ use tokio::sync::mpsc::Sender;
 
 const SOCK_NAME: &str = "icxpd.sock";
 
+#[derive(Debug)]
 pub struct UnixSocketListener<'a> {
     sock_path: PathBuf,
     //TODO: define command enum
