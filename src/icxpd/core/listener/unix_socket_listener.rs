@@ -1,4 +1,5 @@
 use crate::commons::Commons;
+use crate::core::command::Command;
 use std::path::PathBuf;
 use tokio::io::{self, AsyncBufReadExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
@@ -9,8 +10,7 @@ const SOCK_NAME: &str = "icxpd.sock";
 #[derive(Debug)]
 pub struct UnixSocketListener<'a> {
     sock_path: PathBuf,
-    //TODO: define command enum
-    command_sender: &'a Sender<String>,
+    command_sender: &'a Sender<Command>,
 }
 
 impl UnixSocketListener<'_> {
@@ -43,14 +43,24 @@ impl UnixSocketListener<'_> {
         }
     }
 
-    async fn handle(stream: UnixStream, command_sender: Sender<String>) {
+    //TODO: consider making funcs below module level impl
+
+    async fn handle(stream: UnixStream, command_sender: Sender<Command>) {
         let reader = BufReader::new(stream);
         let mut lines = reader.lines();
         // multiple input lines work as a batch
         //TODO: define own error type and unify the return type here
         //TODO: remove unnecessary async mode
         while let Some(line) = lines.next_line().await.unwrap() {
-            command_sender.send(line).await.unwrap();
+            command_sender
+                .send(UnixSocketListener::parse(&line))
+                .await
+                .unwrap();
         }
+    }
+
+    fn parse(args: &String) -> Command {
+        //TODO:
+        Command::NOP(args.clone())
     }
 }
