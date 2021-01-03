@@ -12,11 +12,19 @@ pub struct UnixSocketListener<'a> {
     command_sender: &'a Sender<String>,
 }
 
+#[derive(Debug)]
+pub enum UnixSocketListenerError {
+    Io(io::Error),
+    Generic(String),
+}
+
 impl UnixSocketListener<'_> {
-    pub fn new(c: &Commons) -> Result<UnixSocketListener, String> {
+    pub fn new(c: &Commons) -> Result<UnixSocketListener, UnixSocketListenerError> {
         let work_dir = c
             .get_work_dir()
-            .ok_or(String::from("Invalid home directory path"))?;
+            .ok_or(UnixSocketListenerError::Generic(String::from(
+                "Invalid home directory path",
+            )))?;
         let mut sock_path = PathBuf::from(work_dir);
         sock_path.push(SOCK_NAME);
         let command_sender = c.get_command_sender();
@@ -26,7 +34,7 @@ impl UnixSocketListener<'_> {
         })
     }
 
-    pub async fn listen(&self) -> io::Result<()> {
+    pub async fn listen(&self) -> Result<(), UnixSocketListenerError> {
         let listener = UnixListener::bind(&self.sock_path.as_path())?;
         loop {
             match listener.accept().await {
@@ -36,13 +44,15 @@ impl UnixSocketListener<'_> {
                         self.command_sender.clone(),
                     ));
                 }
-                //TODO: better error handling
-                Err(e) => println!("error: {:?}", e),
+                // accepting a connection can lead to various errors
+                // and not all of them are necessarily fatal
+                //TODO: use logger
+                Err(e) => println!("error while accepting: {:?}", e),
             }
         }
+        //TODO: gentle shutdown
+        // Ok(())
     }
-
-    //TODO: consider making funcs below module level impl
 
     async fn wt_handle(stream: UnixStream, command_sender: Sender<String>) {
         let reader = BufReader::new(stream);
@@ -51,5 +61,11 @@ impl UnixSocketListener<'_> {
         while let Some(line) = lines.next_line().await.unwrap() {
             command_sender.send(line).await.unwrap();
         }
+    }
+}
+
+impl From<io::Error> for UnixSocketListenerError {
+    fn from(err: io::Error) -> UnixSocketListenerError {
+        UnixSocketListenerError::Io(err)
     }
 }
