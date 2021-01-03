@@ -49,7 +49,6 @@ impl UnixSocketListener<'_> {
         let mut lines = reader.lines();
         // multiple input lines work as a batch
         //TODO: define own error type and unify the return type here
-        //TODO: remove unnecessary async mode
         while let Some(line) = lines.next_line().await.unwrap() {
             command_sender.send(line).await.unwrap();
         }
