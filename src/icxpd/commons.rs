@@ -1,4 +1,3 @@
-use crate::core::command::Command;
 use std::path::PathBuf;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
@@ -7,7 +6,7 @@ const COMMAND_BRIDGE_QLEN: usize = 128;
 
 pub struct Commons {
     work_dir: PathBuf,
-    command_bridge: (Sender<Command>, Receiver<Command>),
+    command_bridge: (Sender<String>, Receiver<String>),
 }
 
 impl Commons {
@@ -26,7 +25,7 @@ impl Commons {
         self.work_dir.to_str()
     }
 
-    pub fn get_command_sender(&self) -> &Sender<Command> {
+    pub fn get_command_sender(&self) -> &Sender<String> {
         &self.command_bridge.0
     }
 }
