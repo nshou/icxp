@@ -31,7 +31,7 @@ impl UnixSocketListener<'_> {
         loop {
             match listener.accept().await {
                 Ok((stream, _addr)) => {
-                    tokio::spawn(UnixSocketListener::handle(
+                    tokio::spawn(UnixSocketListener::wt_handle(
                         stream,
                         self.command_sender.clone(),
                     ));
@@ -44,11 +44,10 @@ impl UnixSocketListener<'_> {
 
     //TODO: consider making funcs below module level impl
 
-    async fn handle(stream: UnixStream, command_sender: Sender<String>) {
+    async fn wt_handle(stream: UnixStream, command_sender: Sender<String>) {
         let reader = BufReader::new(stream);
         let mut lines = reader.lines();
         // multiple input lines work as a batch
-        //TODO: define own error type and unify the return type here
         while let Some(line) = lines.next_line().await.unwrap() {
             command_sender.send(line).await.unwrap();
         }
