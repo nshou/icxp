@@ -10,6 +10,7 @@ pub struct Commons {
 }
 
 impl Commons {
+    //TODO: unify error struct
     pub fn init() -> Result<Commons, String> {
         let mut work_dir =
             dirs::home_dir().ok_or(String::from("Unnable to find home directory"))?;
