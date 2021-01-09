@@ -7,7 +7,7 @@ use std::fs;
 
 #[tokio::main]
 async fn main() {
-    let c = Commons::init().unwrap();
+    let c = Commons::init(None).unwrap();
 
     fs::create_dir_all(c.get_work_dir().unwrap()).unwrap();
 
