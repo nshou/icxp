@@ -14,6 +14,7 @@ async fn main() {
     let l = UnixSocketListener::new(&c).unwrap();
     let ul = l.listen();
 
+    //TODO: try_join? select?
     let (ul_r,) = tokio::join!(ul);
     if let Err(e) = ul_r {
         println!("error occurred while joining {:?}: {:?}", l, e);
