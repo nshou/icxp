@@ -26,7 +26,7 @@ impl Commons {
         self.work_dir.to_str()
     }
 
-    pub fn get_command_sender(&self) -> &Sender<String> {
-        &self.command_bridge.0
+    pub fn get_command_sender(&self) -> Sender<String> {
+        self.command_bridge.0.clone()
     }
 }

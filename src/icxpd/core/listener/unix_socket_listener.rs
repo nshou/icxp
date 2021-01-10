@@ -7,9 +7,9 @@ use tokio::sync::mpsc::Sender;
 const SOCK_NAME: &str = "icxpd.sock";
 
 #[derive(Debug)]
-pub struct UnixSocketListener<'a> {
+pub struct UnixSocketListener {
     sock_path: PathBuf,
-    command_sender: &'a Sender<String>,
+    command_sender: Sender<String>,
 }
 
 #[derive(Debug)]
@@ -18,7 +18,7 @@ pub enum UnixSocketListenerError {
     Generic(String),
 }
 
-impl UnixSocketListener<'_> {
+impl UnixSocketListener {
     pub fn new(c: &Commons) -> Result<UnixSocketListener, UnixSocketListenerError> {
         let work_dir = c
             .get_work_dir()
