@@ -29,4 +29,8 @@ impl Commons {
     pub fn get_command_sender(&self) -> Sender<String> {
         self.command_bridge.0.clone()
     }
+
+    pub fn get_command_receiver(&mut self) -> &mut Receiver<String> {
+        &mut self.command_bridge.1
+    }
 }
