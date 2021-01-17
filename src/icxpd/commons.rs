@@ -13,7 +13,7 @@ impl Commons {
     //TODO: unify error struct
     pub fn init(work_dir_name: Option<&str>) -> Result<Commons, String> {
         let mut work_dir =
-            dirs::home_dir().ok_or(String::from("Unnable to find home directory"))?;
+            dirs::home_dir().ok_or_else(|| String::from("Unnable to find home directory"))?;
         work_dir.push(work_dir_name.unwrap_or(WORK_DIR_NAME));
         let command_bridge = mpsc::channel(COMMAND_BRIDGE_QLEN);
         Ok(Commons {
