@@ -10,6 +10,14 @@ const SOCK_NAME: &str = "icxpd.sock";
 pub struct UnixSocketListener {
     sock_path: PathBuf,
     command_sender: Sender<String>,
+    state: UnixSocketListenerState,
+}
+
+#[derive(Debug)]
+enum UnixSocketListenerState {
+    Initialized,
+    Running,
+    Closed,
 }
 
 #[derive(Debug)]
@@ -31,6 +39,7 @@ impl UnixSocketListener {
         Ok(UnixSocketListener {
             sock_path,
             command_sender,
+            state: UnixSocketListenerState::Initialized,
         })
     }
 
@@ -38,9 +47,10 @@ impl UnixSocketListener {
         self.sock_path.to_str()
     }
 
-    pub async fn listen(&self) -> Result<(), UnixSocketListenerError> {
+    pub async fn listen(&mut self) -> Result<(), UnixSocketListenerError> {
         let listener = UnixListener::bind(&self.sock_path.as_path())?;
-        loop {
+        self.state = UnixSocketListenerState::Running;
+        while let UnixSocketListenerState::Running = self.state {
             match listener.accept().await {
                 Ok((stream, _addr)) => {
                     tokio::spawn(UnixSocketListener::wt_handle(
@@ -55,7 +65,7 @@ impl UnixSocketListener {
             }
         }
         //TODO: gentle shutdown
-        // Ok(())
+        Ok(())
     }
 
     async fn wt_handle(stream: UnixStream, command_sender: Sender<String>) {
@@ -95,7 +105,7 @@ mod tests {
         let mut c = Commons::init(Some(&test_dir_name)).unwrap();
         fs::create_dir_all(c.get_work_dir().unwrap()).unwrap();
 
-        let l = UnixSocketListener::new(&c).unwrap();
+        let mut l = UnixSocketListener::new(&c).unwrap();
         let sock_path = String::from(l.get_sock_path().unwrap());
         let listener = tokio::spawn(async move {
             l.listen().await.unwrap();

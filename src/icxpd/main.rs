@@ -11,7 +11,7 @@ async fn main() {
 
     fs::create_dir_all(c.get_work_dir().unwrap()).unwrap();
 
-    let l = UnixSocketListener::new(&c).unwrap();
+    let mut l = UnixSocketListener::new(&c).unwrap();
     let ul = l.listen();
 
     //TODO: try_join? select?
