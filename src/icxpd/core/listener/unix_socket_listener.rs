@@ -1,8 +1,9 @@
 use crate::commons::Commons;
-use std::path::PathBuf;
-use tokio::io::{self, AsyncBufReadExt, BufReader};
+use std::path::{Path, PathBuf};
+use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::mpsc::Sender;
+use tokio::time::{self, Duration};
 
 const SOCK_NAME: &str = "icxpd.sock";
 
@@ -17,6 +18,7 @@ pub struct UnixSocketListener {
 enum UnixSocketListenerState {
     Initialized,
     Running,
+    Closing,
     Closed,
 }
 
@@ -28,11 +30,9 @@ pub enum UnixSocketListenerError {
 
 impl UnixSocketListener {
     pub fn new(c: &Commons) -> Result<UnixSocketListener, UnixSocketListenerError> {
-        let work_dir = c
-            .get_work_dir()
-            .ok_or(UnixSocketListenerError::Generic(String::from(
-                "Invalid home directory path",
-            )))?;
+        let work_dir = c.get_work_dir().ok_or_else(|| {
+            UnixSocketListenerError::Generic(String::from("Invalid home directory path"))
+        })?;
         let mut sock_path = PathBuf::from(work_dir);
         sock_path.push(SOCK_NAME);
         let command_sender = c.get_command_sender();
@@ -58,23 +58,50 @@ impl UnixSocketListener {
                         self.command_sender.clone(),
                     ));
                 }
-                // accepting a connection can lead to various errors
+                // Accepting a connection can lead to various errors
                 // and not all of them are necessarily fatal
                 //TODO: use logger
                 Err(e) => println!("error while accepting: {:?}", e),
             }
         }
-        //TODO: gentle shutdown
+        self.state = UnixSocketListenerState::Closed;
         Ok(())
     }
 
     async fn wt_handle(stream: UnixStream, command_sender: Sender<String>) {
         let reader = BufReader::new(stream);
         let mut lines = reader.lines();
-        // multiple input lines work as a batch
+        // Multiple input lines work as a batch
         while let Some(line) = lines.next_line().await.unwrap() {
             command_sender.send(line).await.unwrap();
         }
+    }
+
+    pub async fn shutdown(&mut self) -> Result<(), UnixSocketListenerError> {
+        //TODO: early return based on self.state
+
+        let sock_path = String::from(self.get_sock_path().ok_or_else(|| {
+            UnixSocketListenerError::Generic(String::from("Invalid socket file path"))
+        })?);
+        let mut stream: Result<UnixStream, io::Error> =
+            Err(io::Error::new(io::ErrorKind::Other, "na"));
+        // Socket file that l.listen() creates might not be ready
+        for _i in 0_i32..10 {
+            time::sleep(Duration::from_millis(10)).await;
+            stream = UnixStream::connect(Path::new(&sock_path)).await;
+            if let Ok(_) = stream {
+                break;
+            }
+        }
+        let mut stream = stream?;
+
+        stream.writable().await?;
+        self.state = UnixSocketListenerState::Closing;
+        // Ignore errors here. Other normal traffic could come in first
+        stream.try_write("{\"NOP\"}".as_bytes()).ok();
+        stream.shutdown().await.ok();
+
+        Ok(())
     }
 }
 
@@ -88,10 +115,6 @@ impl From<io::Error> for UnixSocketListenerError {
 mod tests {
     use super::*;
     use std::fs;
-    use std::path::Path;
-    use tokio::io::AsyncWriteExt;
-    use tokio::net::UnixStream;
-    use tokio::time::{self, Duration};
     use uuid::Uuid;
 
     fn reserve_test_dir_name() -> String {
@@ -113,7 +136,7 @@ mod tests {
 
         let mut stream: Result<UnixStream, io::Error> =
             Err(io::Error::new(io::ErrorKind::Other, "na"));
-        // socket file that l.listen() creates might not be ready
+        // Socket file that l.listen() creates might not be ready
         for _i in 0_i32..10 {
             time::sleep(Duration::from_millis(10)).await;
             stream = UnixStream::connect(Path::new(&sock_path)).await;
@@ -121,7 +144,7 @@ mod tests {
                 break;
             }
         }
-        // let it panic if failed for 10 times
+        // Let it panic if failed for 10 times
         let mut stream = stream.unwrap();
 
         stream.writable().await.unwrap();
