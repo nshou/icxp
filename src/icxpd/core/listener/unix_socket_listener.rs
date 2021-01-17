@@ -64,6 +64,7 @@ impl UnixSocketListener {
                 Err(e) => println!("error while accepting: {:?}", e),
             }
         }
+        //TODO: teardown sock pfile
         self.state = UnixSocketListenerState::Closed;
         Ok(())
     }
