@@ -1,17 +1,18 @@
 use crate::commons::Commons;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc as stdmpsc;
+use stdmpsc::TryRecvError;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::{self, Duration};
 
 const SOCK_NAME: &str = "icxpd.sock";
-const CTL_BRIDGE_QLEN: usize = 8;
 
 pub struct UnixSocketListener {
     sock_path: PathBuf,
     state: UnixSocketListenerState,
-    ctl: Sender<UnixSocketListenerCtl>,
+    ctl: stdmpsc::Sender<UnixSocketListenerCtl>,
 }
 
 enum UnixSocketListenerState {
@@ -41,7 +42,8 @@ impl UnixSocketListener {
         sock_path.push(SOCK_NAME);
         let listener = UnixListener::bind(sock_path.as_path())?;
         let command_sender = c.get_command_sender();
-        let (ctl_sender, ctl_receiver) = mpsc::channel(CTL_BRIDGE_QLEN);
+        // Use mpsc of std, not of tokio, because we want try_recv()
+        let (ctl_sender, ctl_receiver) = stdmpsc::channel();
 
         tokio::spawn(async move {
             loop {
@@ -67,7 +69,23 @@ impl UnixSocketListener {
                     }
                 }
 
-                //TODO: ctl match
+                match ctl_receiver.try_recv() {
+                    Err(ctlerr) => {
+                        match ctlerr {
+                            TryRecvError::Empty => {}
+                            TryRecvError::Disconnected => {
+                                //TODO: master thread died. Shutdown this thread too
+                            }
+                        }
+                    }
+                    Ok(ctlcmd) => {
+                        match ctlcmd {
+                            UnixSocketListenerCtl::Close => {
+                                //TODO: close here
+                            }
+                        }
+                    }
+                }
             }
         });
 
@@ -115,7 +133,7 @@ mod tests {
             c.get_command_receiver().recv().await
         );
 
-        //TODO: what if either sender/receiver is closed/dropped?
+        //TODO: what if either sender/receiver is closed/shutdown/dropped?
         // cases: sender dropped / receiver dropped / receiver closed
         // e.g. if sender is dropped:
         //   assert_eq!(None, c.get_command_receiver().recv().await);
