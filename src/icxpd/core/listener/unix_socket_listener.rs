@@ -35,7 +35,7 @@ impl UnixSocketListener {
     pub fn listen(c: &Commons) -> Result<UnixSocketListener, UnixSocketListenerError> {
         let work_dir = c.get_work_dir().ok_or_else(|| {
             UnixSocketListenerError::Generic(String::from(
-                "Failed to look up the path to place Unix socket file",
+                "Failed to look up the path to place Unix socket",
             ))
         })?;
         let mut sock_path = PathBuf::from(work_dir);
@@ -94,6 +94,36 @@ impl UnixSocketListener {
             state: UnixSocketListenerState::Running,
             ctl: ctl_sender,
         })
+    }
+
+    pub async fn shutdown(self) -> Result<(), UnixSocketListenerError> {
+        let mut stream: Result<UnixStream, io::Error> =
+            Err(io::Error::new(io::ErrorKind::Other, "na"));
+        // Socket file that listen() creates might not be ready
+        for _i in 0_i32..10 {
+            stream = UnixStream::connect(self.sock_path.as_path()).await;
+            if let Ok(_) = stream {
+                break;
+            }
+            time::sleep(Duration::from_millis(10)).await;
+        }
+        let mut stream = stream?;
+        stream.writable().await?;
+
+        if self.ctl.send(UnixSocketListenerCtl::Close).is_err() {
+            return Err(UnixSocketListenerError::Generic(String::from(
+                "Failed to send a command through control channel",
+            )));
+        }
+
+        // Ignore errors here. Other normal traffic could cut in first
+        stream.try_write("{\"NOP\"}".as_bytes()).ok();
+        stream.shutdown().await.ok();
+
+        //When the Receiver is dropped, it is possible for unprocessed messages to remain in the channel. Instead, it is usually desirable to perform a "clean" shutdown. To do this, the receiver first calls close, which will prevent any further messages to be sent into the channel. Then, the receiver consumes the channel to completion, at which point the receiver can be dropped.
+
+        //TODO: teardown sock pfile
+        Ok(())
     }
 }
 
