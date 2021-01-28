@@ -1,4 +1,5 @@
 use crate::commons::Commons;
+use std::fs;
 use std::path::PathBuf;
 use std::sync::mpsc as stdmpsc;
 use stdmpsc::TryRecvError;
@@ -116,6 +117,12 @@ impl UnixSocketListener {
 
         //TODO: teardown sock pfile
         Ok(())
+    }
+}
+
+impl Drop for UnixSocketListener {
+    fn drop(&mut self) {
+        fs::remove_file(self.sock_path.as_path()).ok();
     }
 }
 
