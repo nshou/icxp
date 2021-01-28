@@ -1,10 +1,9 @@
 use crate::commons::Commons;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::mpsc as stdmpsc;
 use stdmpsc::TryRecvError;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
-use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::{self, Duration};
 
 const SOCK_NAME: &str = "icxpd.sock";
