@@ -143,9 +143,18 @@ mod tests {
         fs::create_dir_all(c.get_work_dir().unwrap()).unwrap();
 
         let l = UnixSocketListener::listen(&c).unwrap();
-        let sock_path = String::from(l.sock_path.to_str().unwrap());
+        let mut stream: Result<UnixStream, io::Error> =
+            Err(io::Error::new(io::ErrorKind::Other, "na"));
+        // Socket file that listen() creates might not be ready
+        for _i in 0_i32..10 {
+            stream = UnixStream::connect(l.sock_path.as_path()).await;
+            if let Ok(_) = stream {
+                break;
+            }
+            time::sleep(Duration::from_millis(10)).await;
+        }
+        let mut stream = stream.unwrap();
 
-        let mut stream = UnixStream::connect(Path::new(&sock_path)).await.unwrap();
         stream.writable().await.unwrap();
         assert_eq!(msg.len(), stream.try_write(msg.as_bytes()).unwrap());
         stream.shutdown().await.unwrap();
