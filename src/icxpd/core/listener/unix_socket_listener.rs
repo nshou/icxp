@@ -74,17 +74,16 @@ impl UnixSocketListener {
                         match ctlerr {
                             TryRecvError::Empty => {}
                             TryRecvError::Disconnected => {
-                                //TODO: master thread died. Shutdown this thread too
+                                // Master thread is dead. Shutdown this thread too
+                                break;
                             }
                         }
                     }
-                    Ok(ctlcmd) => {
-                        match ctlcmd {
-                            UnixSocketListenerCtl::Close => {
-                                //TODO: close here
-                            }
+                    Ok(ctlcmd) => match ctlcmd {
+                        UnixSocketListenerCtl::Close => {
+                            break;
                         }
-                    }
+                    },
                 }
             }
         });
