@@ -109,6 +109,7 @@ impl UnixSocketListener {
         // Ignore errors here. Other normal traffic could cut in first
         stream.try_write("{\"NOP\"}".as_bytes()).ok();
         stream.shutdown().await.ok();
+        //TODO: ensure listener thread to be dropped?
 
         //TODO:
         //When the Receiver is dropped, it is possible for unprocessed messages to remain in the channel. Instead, it is usually desirable to perform a "clean" shutdown. To do this, the receiver first calls close, which will prevent any further messages to be sent into the channel. Then, the receiver consumes the channel to completion, at which point the receiver can be dropped.
