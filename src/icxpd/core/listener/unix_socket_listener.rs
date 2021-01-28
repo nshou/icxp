@@ -119,6 +119,7 @@ impl UnixSocketListener {
         stream.try_write("{\"NOP\"}".as_bytes()).ok();
         stream.shutdown().await.ok();
 
+        //TODO:
         //When the Receiver is dropped, it is possible for unprocessed messages to remain in the channel. Instead, it is usually desirable to perform a "clean" shutdown. To do this, the receiver first calls close, which will prevent any further messages to be sent into the channel. Then, the receiver consumes the channel to completion, at which point the receiver can be dropped.
 
         //TODO: teardown sock pfile
@@ -162,19 +163,19 @@ mod tests {
             c.get_command_receiver().recv().await
         );
 
-        //TODO: what if either sender/receiver is closed/shutdown/dropped?
-        // cases: sender dropped / receiver dropped / receiver closed
-        // e.g. if sender is dropped:
-        //   assert_eq!(None, c.get_command_receiver().recv().await);
-        // tests should be added after gentle shutdown implemented
-
-        //TODO: panic when thread panics
-        //        let (ul_r,) = tokio::join!(ul);
-        //        if let Err(e) = ul_r {
-        //            println!("error occurred while joining {:?}: {:?}", l, e);
-        //        }
-
-        //TODO: teardown
-        //close listener and delete test dir
+        l.shutdown().await.unwrap();
+        //TODO: teardown: delete test dir
     }
+
+    //TODO: what if either sender/receiver is closed/shutdown/dropped?
+    // cases: sender dropped / receiver dropped / receiver closed
+    // e.g. if sender is dropped:
+    //   assert_eq!(None, c.get_command_receiver().recv().await);
+    // tests should be added after gentle shutdown implemented
+
+    //TODO: panic when thread panics
+    //        let (ul_r,) = tokio::join!(ul);
+    //        if let Err(e) = ul_r {
+    //            println!("error occurred while joining {:?}: {:?}", l, e);
+    //        }
 }
