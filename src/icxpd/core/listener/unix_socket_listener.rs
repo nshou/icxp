@@ -179,7 +179,7 @@ mod tests {
         );
 
         l.shutdown().await.unwrap();
-        //TODO: teardown: delete test dir
+        fs::remove_dir_all(c.get_work_dir().unwrap()).unwrap();
     }
 
     //TODO: what if either sender/receiver is closed/shutdown/dropped?
