@@ -33,6 +33,13 @@ impl UnixSocketListener {
         })?;
         let mut sock_path = PathBuf::from(work_dir);
         sock_path.push(SOCK_NAME);
+
+        if sock_path.exists() {
+            //TODO: use logger
+            println!("Socket file already exists. Another icxpd process might be running or crashed last time");
+            fs::remove_file(sock_path.as_path()).ok();
+        }
+
         let listener = UnixListener::bind(sock_path.as_path())?;
         let command_sender = c.get_command_sender();
         // Use mpsc of std, not of tokio, because we want try_recv()
