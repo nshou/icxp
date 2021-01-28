@@ -11,14 +11,7 @@ const SOCK_NAME: &str = "icxpd.sock";
 
 pub struct UnixSocketListener {
     sock_path: PathBuf,
-    state: UnixSocketListenerState,
     ctl: stdmpsc::Sender<UnixSocketListenerCtl>,
-}
-
-enum UnixSocketListenerState {
-    Running,
-    Closing,
-    Closed,
 }
 
 enum UnixSocketListenerCtl {
@@ -90,7 +83,6 @@ impl UnixSocketListener {
 
         Ok(UnixSocketListener {
             sock_path,
-            state: UnixSocketListenerState::Running,
             ctl: ctl_sender,
         })
     }
