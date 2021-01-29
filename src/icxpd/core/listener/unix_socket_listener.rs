@@ -1,6 +1,6 @@
 use crate::commons::Commons;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc as stdmpsc;
 use stdmpsc::TryRecvError;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -154,29 +154,37 @@ mod tests {
     use std::fs;
     use uuid::Uuid;
 
-    fn reserve_test_dir_name() -> String {
+    fn _reserve_test_dir_name() -> String {
         format!(".icxp_test_{}", Uuid::new_v4().to_hyphenated().to_string())
     }
 
-    #[tokio::test]
-    async fn one_message_delivery() {
-        let msg = "one_message_delivery";
-        let test_dir_name = reserve_test_dir_name();
-        let mut c = Commons::init(Some(&test_dir_name)).unwrap();
-        fs::create_dir_all(c.get_work_dir().unwrap()).unwrap();
+    fn prepare() -> Option<Commons> {
+        let test_dir_name = _reserve_test_dir_name();
+        let c = Commons::init(Some(&test_dir_name)).ok()?;
+        fs::create_dir_all(c.get_work_dir()?).ok()?;
+        Some(c)
+    }
 
-        let l = UnixSocketListener::listen(&c).unwrap();
+    async fn connect(path: &Path) -> Option<UnixStream> {
         let mut stream: Result<UnixStream, io::Error> =
             Err(io::Error::new(io::ErrorKind::Other, "na"));
         // Socket file that listen() creates might not be ready
         for _i in 0..POLL_TRY_COUNT {
-            stream = UnixStream::connect(l.sock_path.as_path()).await;
+            stream = UnixStream::connect(&path).await;
             if let Ok(_) = stream {
                 break;
             }
             time::sleep(Duration::from_millis(POLL_INTVL_MILLIS)).await;
         }
-        let mut stream = stream.unwrap();
+        stream.ok()
+    }
+
+    #[tokio::test]
+    async fn one_message_delivery() {
+        let msg = "one_message_delivery";
+        let mut c = prepare().unwrap();
+        let l = UnixSocketListener::listen(&c).unwrap();
+        let mut stream = connect(l.sock_path.as_path()).await.unwrap();
 
         stream.writable().await.unwrap();
         assert_eq!(msg.len(), stream.try_write(msg.as_bytes()).unwrap());
