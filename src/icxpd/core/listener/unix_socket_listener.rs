@@ -165,6 +165,11 @@ mod tests {
         Some(c)
     }
 
+    fn teardown(c: Commons) -> Option<()> {
+        fs::remove_dir_all(&c.get_work_dir()?).ok()?;
+        Some(())
+    }
+
     async fn connect(path: &Path) -> Option<UnixStream> {
         let mut stream: Result<UnixStream, io::Error> =
             Err(io::Error::new(io::ErrorKind::Other, "na"));
@@ -196,7 +201,7 @@ mod tests {
         );
 
         l.shutdown().await.unwrap();
-        fs::remove_dir_all(c.get_work_dir().unwrap()).unwrap();
+        teardown(c);
     }
 
     //TODO: what if either sender/receiver is closed/shutdown/dropped?
