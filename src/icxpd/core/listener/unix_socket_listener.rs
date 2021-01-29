@@ -8,6 +8,8 @@ use tokio::net::{UnixListener, UnixStream};
 use tokio::time::{self, Duration};
 
 const SOCK_NAME: &str = "icxpd.sock";
+const POLL_INTVL_MILLIS: u64 = 10;
+const POLL_TRY_COUNT: i32 = 10;
 
 pub struct UnixSocketListener {
     sock_path: PathBuf,
@@ -100,12 +102,12 @@ impl UnixSocketListener {
         let mut stream: Result<UnixStream, io::Error> =
             Err(io::Error::new(io::ErrorKind::Other, "na"));
         // Socket file that listen() creates might not be ready
-        for _i in 0_i32..10 {
+        for _i in 0..POLL_TRY_COUNT {
             stream = UnixStream::connect(self.sock_path.as_path()).await;
             if let Ok(_) = stream {
                 break;
             }
-            time::sleep(Duration::from_millis(10)).await;
+            time::sleep(Duration::from_millis(POLL_INTVL_MILLIS)).await;
         }
         let mut stream = stream?;
         stream.writable().await?;
@@ -121,11 +123,11 @@ impl UnixSocketListener {
         stream.shutdown().await.ok();
 
         let mut i = 0;
-        while i < 10 && self.ctl.send(UnixSocketListenerCtl::Nop).is_ok() {
-            time::sleep(Duration::from_millis(10)).await;
+        while i < POLL_TRY_COUNT && self.ctl.send(UnixSocketListenerCtl::Nop).is_ok() {
+            time::sleep(Duration::from_millis(POLL_INTVL_MILLIS)).await;
             i += 1;
         }
-        if i == 10 {
+        if i == POLL_TRY_COUNT {
             //TODO: use logger
             println!("Gave up waiting for the listener thread to be closed");
         }
@@ -170,12 +172,12 @@ mod tests {
         let mut stream: Result<UnixStream, io::Error> =
             Err(io::Error::new(io::ErrorKind::Other, "na"));
         // Socket file that listen() creates might not be ready
-        for _i in 0_i32..10 {
+        for _i in 0..POLL_TRY_COUNT {
             stream = UnixStream::connect(l.sock_path.as_path()).await;
             if let Ok(_) = stream {
                 break;
             }
-            time::sleep(Duration::from_millis(10)).await;
+            time::sleep(Duration::from_millis(POLL_INTVL_MILLIS)).await;
         }
         let mut stream = stream.unwrap();
 
