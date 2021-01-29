@@ -16,6 +16,7 @@ pub struct UnixSocketListener {
 
 enum UnixSocketListenerCtl {
     Close,
+    Nop,
 }
 
 #[derive(Debug)]
@@ -83,6 +84,7 @@ impl UnixSocketListener {
                         UnixSocketListenerCtl::Close => {
                             break;
                         }
+                        UnixSocketListenerCtl::Nop => {}
                     },
                 }
             }
@@ -117,7 +119,16 @@ impl UnixSocketListener {
         // Ignore errors here. Other normal traffic could cut in first
         stream.try_write("{\"NOP\"}".as_bytes()).ok();
         stream.shutdown().await.ok();
-        //TODO: ensure listener thread to be dropped?
+
+        let mut i = 0;
+        while i < 10 && self.ctl.send(UnixSocketListenerCtl::Nop).is_ok() {
+            time::sleep(Duration::from_millis(10)).await;
+            i += 1;
+        }
+        if i == 10 {
+            //TODO: use logger
+            println!("Gave up waiting for the listener thread to be closed");
+        }
 
         //TODO:
         //When the Receiver is dropped, it is possible for unprocessed messages to remain in the channel. Instead, it is usually desirable to perform a "clean" shutdown. To do this, the receiver first calls close, which will prevent any further messages to be sent into the channel. Then, the receiver consumes the channel to completion, at which point the receiver can be dropped.
