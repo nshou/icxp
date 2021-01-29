@@ -204,10 +204,4 @@ mod tests {
     // e.g. if sender is dropped:
     //   assert_eq!(None, c.get_command_receiver().recv().await);
     // tests should be added after gentle shutdown implemented
-
-    //TODO: panic when thread panics
-    //        let (ul_r,) = tokio::join!(ul);
-    //        if let Err(e) = ul_r {
-    //            println!("error occurred while joining {:?}: {:?}", l, e);
-    //        }
 }
