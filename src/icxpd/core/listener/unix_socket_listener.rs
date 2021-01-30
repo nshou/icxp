@@ -295,6 +295,14 @@ mod tests {
         teardown(c1);
     }
 
+    #[tokio::test]
+    async fn immediate_shutdown() {
+        let c = prepare().unwrap();
+        let l = UnixSocketListener::listen(&c).unwrap();
+        l.shutdown().await.unwrap();
+        teardown(c);
+    }
+
     //TODO: what if either sender/receiver is closed/shutdown/dropped?
     // cases: sender dropped / receiver dropped / receiver closed
     // e.g. if sender is dropped:
