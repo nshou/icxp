@@ -232,6 +232,41 @@ mod tests {
         teardown(c);
     }
 
+    #[tokio::test]
+    async fn many_messages_delivery() {
+        let mut c = prepare().unwrap();
+        let l = UnixSocketListener::listen(&c).unwrap();
+
+        let mut ssum: u32 = 0;
+        for i in 0..100 {
+            let sock_path_str = String::from(l.sock_path.to_str().unwrap());
+            tokio::spawn(async move {
+                let istr = i.to_string();
+                let mut stream = connect(Path::new(&sock_path_str)).await.unwrap();
+                stream.writable().await.unwrap();
+                assert_eq!(istr.len(), stream.try_write(istr.as_bytes()).unwrap());
+                stream.shutdown().await.unwrap();
+            });
+            ssum += i;
+        }
+
+        let mut rsum: u32 = 0;
+        for _ in 0..100 {
+            rsum += c
+                .get_command_receiver()
+                .recv()
+                .await
+                .unwrap()
+                .parse::<u32>()
+                .unwrap();
+        }
+
+        assert_eq!(ssum, rsum);
+
+        l.shutdown().await.unwrap();
+        teardown(c);
+    }
+
     //TODO: what if either sender/receiver is closed/shutdown/dropped?
     // cases: sender dropped / receiver dropped / receiver closed
     // e.g. if sender is dropped:
