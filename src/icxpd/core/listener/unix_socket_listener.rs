@@ -252,19 +252,47 @@ mod tests {
 
         let mut rsum: u32 = 0;
         for _ in 0..100 {
-            rsum += c
-                .get_command_receiver()
-                .recv()
-                .await
-                .unwrap()
-                .parse::<u32>()
-                .unwrap();
+            let istr = c.get_command_receiver().recv().await.unwrap();
+            rsum += istr.parse::<u32>().unwrap();
         }
 
         assert_eq!(ssum, rsum);
 
         l.shutdown().await.unwrap();
         teardown(c);
+    }
+
+    #[tokio::test]
+    async fn allow_dup_listeners() {
+        let msg0 = "msg0";
+        let msg1 = "msg1";
+        let mut c0 = prepare().unwrap();
+        let mut c1 = prepare().unwrap();
+        let l0 = UnixSocketListener::listen(&c0).unwrap();
+        let mut stream0 = connect(l0.sock_path.as_path()).await.unwrap();
+        let l1 = UnixSocketListener::listen(&c1).unwrap();
+        let mut stream1 = connect(l1.sock_path.as_path()).await.unwrap();
+
+        stream0.writable().await.unwrap();
+        assert_eq!(msg0.len(), stream0.try_write(msg0.as_bytes()).unwrap());
+        stream1.writable().await.unwrap();
+        assert_eq!(msg1.len(), stream1.try_write(msg1.as_bytes()).unwrap());
+        stream0.shutdown().await.unwrap();
+        stream1.shutdown().await.unwrap();
+
+        assert_eq!(
+            Some(String::from(msg0)),
+            c0.get_command_receiver().recv().await
+        );
+        assert_eq!(
+            Some(String::from(msg1)),
+            c1.get_command_receiver().recv().await
+        );
+
+        l0.shutdown().await.unwrap();
+        l1.shutdown().await.unwrap();
+        teardown(c0);
+        teardown(c1);
     }
 
     //TODO: what if either sender/receiver is closed/shutdown/dropped?
