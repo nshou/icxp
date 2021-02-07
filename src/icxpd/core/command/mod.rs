@@ -7,7 +7,7 @@ pub enum Command {
 }
 
 #[derive(Deserialize, Debug)]
-struct Nop {
+pub struct Nop {
     extras: Option<String>,
 }
 
