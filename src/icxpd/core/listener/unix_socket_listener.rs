@@ -1,5 +1,6 @@
 use crate::commons::Commons;
 use std::fs;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc as stdmpsc;
 use stdmpsc::TryRecvError;
@@ -99,34 +100,45 @@ impl UnixSocketListener {
     }
 
     pub async fn shutdown(self) -> Result<(), UnixSocketListenerError> {
-        let mut stream: Result<UnixStream, io::Error> =
-            Err(io::Error::new(io::ErrorKind::Other, "na"));
-        // Socket file that listen() creates might not be ready
-        for _i in 0..POLL_TRY_COUNT {
-            stream = UnixStream::connect(self.sock_path.as_path()).await;
-            if let Ok(_) = stream {
-                break;
-            }
-            time::sleep(Duration::from_millis(POLL_INTVL_MILLIS)).await;
-        }
-        let mut stream = stream?;
-        stream.writable().await?;
-
+        //TODO: from trait
         if self.ctl.send(UnixSocketListenerCtl::Close).is_err() {
             return Err(UnixSocketListenerError::Generic(String::from(
                 "Failed to send a command through control channel",
             )));
         }
 
-        // Ignore errors here. Other normal traffic could cut in first
-        stream.try_write("{\"NOP\"}".as_bytes()).ok();
-        stream.shutdown().await.ok();
-
         let mut i = 0;
-        while i < POLL_TRY_COUNT && self.ctl.send(UnixSocketListenerCtl::Nop).is_ok() {
+        while i < POLL_TRY_COUNT {
+            let conn = UnixStream::connect(self.sock_path.as_path()).await;
+            match conn {
+                Ok(mut stream) => {
+                    stream.writable().await?;
+                    // Ignore errors here. Other normal traffic could cut in first
+                    stream.try_write("{\"NOP\"}".as_bytes()).ok();
+                    stream.shutdown().await.ok();
+                    if self.ctl.send(UnixSocketListenerCtl::Nop).is_err() {
+                        // Ctl receiver dropped, meaning the listener successfully ended
+                        break;
+                    }
+                }
+                Err(err) => {
+                    match err.kind() {
+                        ErrorKind::NotFound => { /* Socket not bound yet. Continue */ }
+                        ErrorKind::ConnectionRefused => {
+                            // Socket closed, meaning the listener successfully ended
+                            break;
+                        }
+                        _ => {
+                            //TODO: from trait
+                            return Err(UnixSocketListenerError::Io(err));
+                        }
+                    }
+                }
+            }
             time::sleep(Duration::from_millis(POLL_INTVL_MILLIS)).await;
             i += 1;
         }
+
         if i == POLL_TRY_COUNT {
             //TODO: use logger
             println!("Gave up waiting for the listener thread to be closed");
@@ -184,7 +196,7 @@ mod tests {
         stream.ok()
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn one_message_delivery() {
         let msg = "one_message_delivery";
         let mut c = prepare().unwrap();
@@ -204,7 +216,7 @@ mod tests {
         teardown(c);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn batch_message_delivery() {
         let mut c = prepare().unwrap();
         let l = UnixSocketListener::listen(&c).unwrap();
@@ -232,7 +244,7 @@ mod tests {
         teardown(c);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn many_messages_delivery() {
         let mut c = prepare().unwrap();
         let l = UnixSocketListener::listen(&c).unwrap();
@@ -262,7 +274,7 @@ mod tests {
         teardown(c);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn allow_dup_listeners() {
         let msg0 = "msg0";
         let msg1 = "msg1";
@@ -295,7 +307,7 @@ mod tests {
         teardown(c1);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn immediate_shutdown() {
         let c = prepare().unwrap();
         let l = UnixSocketListener::listen(&c).unwrap();
