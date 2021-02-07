@@ -1,7 +1,7 @@
 use crate::commons::Commons;
 use std::fs;
 use std::io::ErrorKind;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::mpsc as stdmpsc;
 use stdmpsc::TryRecvError;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -164,6 +164,7 @@ impl From<io::Error> for UnixSocketListenerError {
 mod tests {
     use super::*;
     use std::fs;
+    use std::path::Path;
     use uuid::Uuid;
 
     fn _reserve_test_dir_name() -> String {
