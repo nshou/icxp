@@ -1,4 +1,4 @@
-pub mod commons;
+mod commons;
 mod core;
 
 use crate::commons::Commons;
