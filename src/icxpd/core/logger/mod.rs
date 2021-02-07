@@ -57,6 +57,7 @@ impl Logger {
 
     //TODO: close()
     // closing: All sender dropped -> next recv() -> RecvError::Closed -> exit inf. loop and end thread
+    // should wait for all writers to be closed -> need to keep JoinHandles
 }
 
 struct LogDistributor {
