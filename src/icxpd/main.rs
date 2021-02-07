@@ -3,6 +3,8 @@ mod core;
 
 use crate::commons::Commons;
 use crate::core::listener::unix_socket_listener::UnixSocketListener;
+use crate::core::logger::null_logger::NullLogger;
+use crate::core::logger::Logger;
 use std::fs;
 
 #[tokio::main]
@@ -11,7 +13,12 @@ async fn main() {
 
     fs::create_dir_all(c.get_work_dir().unwrap()).unwrap();
 
-    let listener = UnixSocketListener::listen(&c).unwrap();
+    let _listener = UnixSocketListener::listen(&c).unwrap();
+
+    let logger = Logger::open().unwrap();
+    let nulll = NullLogger;
+    logger.set_log_writer(&nulll);
+    log::error!("error");
 
     //TODO: heartbeat loop on current thread
     // immediately exits for now
