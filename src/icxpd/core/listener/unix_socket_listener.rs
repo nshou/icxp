@@ -183,17 +183,14 @@ mod tests {
     }
 
     async fn connect(path: &Path) -> Option<UnixStream> {
-        let mut stream: Result<UnixStream, io::Error> =
-            Err(io::Error::new(io::ErrorKind::Other, "na"));
-        // Socket file that listen() creates might not be ready
         for _i in 0..POLL_TRY_COUNT {
-            stream = UnixStream::connect(&path).await;
-            if let Ok(_) = stream {
-                break;
+            let conn = UnixStream::connect(&path).await;
+            if let Ok(stream) = conn {
+                return Some(stream);
             }
             time::sleep(Duration::from_millis(POLL_INTVL_MILLIS)).await;
         }
-        stream.ok()
+        None
     }
 
     #[tokio::test(flavor = "multi_thread")]
