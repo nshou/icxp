@@ -29,6 +29,7 @@ pub struct Logger {
 }
 
 impl Logger {
+    //TODO: take array of writers and register them in place
     pub fn open() -> Result<Logger, LoggerError> {
         let level = match std::env::var(LOG_LEVEL_ENV_KEY) {
             Ok(lv) => match lv.to_lowercase().as_str() {
@@ -60,6 +61,8 @@ impl Logger {
     // closing: All sender dropped -> next recv() -> RecvError::Closed -> exit inf. loop and end thread
     // should wait for all writers to be closed -> need to keep JoinHandles
 }
+
+//TODO: broadcast enum (log, ctl, etc), not String
 
 struct LogDistributor {
     sender: Sender<String>,
