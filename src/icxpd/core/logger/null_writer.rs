@@ -2,9 +2,9 @@ use crate::core::logger::LogWriter;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
-pub struct NullLogger;
+pub struct NullWriter;
 
-impl LogWriter for NullLogger {
+impl LogWriter for NullWriter {
     fn subscribe(&self, mut receiver: Receiver<String>) {
         tokio::spawn(async move {
             loop {
@@ -25,8 +25,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn log_five_levels() {
         let logger = Logger::open().unwrap();
-        let nulll = NullLogger;
-        logger.set_log_writer(&nulll);
+        let nullw = NullWriter;
+        logger.set_log_writer(&nullw);
         log::error!("error");
         log::warn!("warn");
         log::info!("info");

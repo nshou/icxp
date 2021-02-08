@@ -1,4 +1,4 @@
-pub mod null_logger;
+pub mod null_writer;
 
 use chrono::Local;
 use log::{LevelFilter, Metadata, Record, SetLoggerError};
@@ -14,6 +14,7 @@ pub trait LogWriter {
 
 #[derive(Debug)]
 pub enum LoggerError {
+    //TODO: more types with 'from' traits
     Generic(String),
 }
 

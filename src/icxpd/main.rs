@@ -3,7 +3,7 @@ mod core;
 
 use crate::commons::Commons;
 use crate::core::listener::unix_socket_listener::UnixSocketListener;
-use crate::core::logger::null_logger::NullLogger;
+use crate::core::logger::null_writer::NullWriter;
 use crate::core::logger::Logger;
 use std::fs;
 
@@ -16,7 +16,7 @@ async fn main() {
     let _listener = UnixSocketListener::listen(&c).unwrap();
 
     let logger = Logger::open().unwrap();
-    let nulll = NullLogger;
+    let nulll = NullWriter;
     logger.set_log_writer(&nulll);
     log::error!("error");
 
