@@ -13,6 +13,7 @@ name = "icxpc"
 path = "src/icxpc/main.rs"
 
 [dependencies]
+async-trait = "0.1"
 chrono = "0.4"
 dirs = "3.0"
 log = { version = "0.4", features = ["std"] }

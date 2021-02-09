@@ -1,5 +1,6 @@
 pub mod null_writer;
 
+use async_trait::async_trait;
 use chrono::Local;
 use log::{LevelFilter, Metadata, Record, SetLoggerError};
 use tokio::sync::broadcast::{self, Receiver, Sender};
@@ -8,10 +9,14 @@ const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::Error;
 const LOG_LEVEL_ENV_KEY: &str = "ICXPD_LOG_LEVEL";
 const LOG_LINE_QLEN: usize = 1_000_000;
 
+//TODO: remove async_trait once it's officially supported
+#[async_trait]
 pub trait LogWriter {
-    //TODO: returns
-    fn subscribe(&self, receiver: Receiver<String>);
-    //TODO: add get_join_timeout
+    fn get_writer_name(&self) -> String;
+    fn get_join_timeout_millis(&self) -> u64 {
+        1000
+    }
+    async fn begin_subscribe(self, receiver: Receiver<String>) -> i32;
 }
 
 #[derive(Debug)]
@@ -31,7 +36,6 @@ pub struct Logger {
 }
 
 impl Logger {
-    //TODO: take array of writers and register them in place
     pub fn open() -> Result<Logger, LoggerError> {
         let level = match std::env::var(LOG_LEVEL_ENV_KEY) {
             Ok(lv) => match lv.to_lowercase().as_str() {
@@ -54,10 +58,12 @@ impl Logger {
         Ok(Logger { publisher })
     }
 
-    pub fn set_log_writer(&self, writer: &impl LogWriter) {
+    pub fn set_log_writer(&self, writer: (impl LogWriter + 'static)) {
+        let name = writer.get_writer_name();
+        let timeout = writer.get_join_timeout_millis();
         let receiver = self.publisher.subscribe();
-        writer.subscribe(receiver);
-        //TODO: keep LogWriter and its JoinHandle in Vector
+        let handle = tokio::spawn(writer.begin_subscribe(receiver));
+        //TODO: keep name, timeout, handle in Vector
     }
 
     //TODO: close()

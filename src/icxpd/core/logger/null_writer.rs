@@ -1,19 +1,24 @@
 use crate::core::logger::LogWriter;
+use async_trait::async_trait;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 pub struct NullWriter;
 
+#[async_trait]
 impl LogWriter for NullWriter {
-    fn subscribe(&self, mut receiver: Receiver<String>) {
-        tokio::spawn(async move {
-            loop {
-                match receiver.recv().await {
-                    Err(RecvError::Closed) => break,
-                    _ => {}
-                }
+    fn get_writer_name(&self) -> String {
+        String::from("Null Writer")
+    }
+
+    async fn begin_subscribe(self, mut receiver: Receiver<String>) -> i32 {
+        loop {
+            match receiver.recv().await {
+                Err(RecvError::Closed) => break,
+                _ => {}
             }
-        });
+        }
+        0
     }
 }
 
@@ -26,7 +31,7 @@ mod tests {
     async fn log_five_levels() {
         let logger = Logger::open().unwrap();
         let nullw = NullWriter;
-        logger.set_log_writer(&nullw);
+        logger.set_log_writer(nullw);
         log::error!("error");
         log::warn!("warn");
         log::info!("info");

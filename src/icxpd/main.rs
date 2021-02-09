@@ -16,8 +16,8 @@ async fn main() {
     let _listener = UnixSocketListener::listen(&c).unwrap();
 
     let logger = Logger::open().unwrap();
-    let nulll = NullWriter;
-    logger.set_log_writer(&nulll);
+    let nullw = NullWriter;
+    logger.set_log_writer(nullw);
     log::error!("error");
 
     //TODO: heartbeat loop on current thread
