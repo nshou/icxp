@@ -9,7 +9,9 @@ const LOG_LEVEL_ENV_KEY: &str = "ICXPD_LOG_LEVEL";
 const LOG_LINE_QLEN: usize = 1_000_000;
 
 pub trait LogWriter {
+    //TODO: returns
     fn subscribe(&self, receiver: Receiver<String>);
+    //TODO: add get_join_timeout
 }
 
 #[derive(Debug)]
@@ -55,6 +57,7 @@ impl Logger {
     pub fn set_log_writer(&self, writer: &impl LogWriter) {
         let receiver = self.publisher.subscribe();
         writer.subscribe(receiver);
+        //TODO: keep LogWriter and its JoinHandle in Vector
     }
 
     //TODO: close()
