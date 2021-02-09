@@ -30,8 +30,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn log_five_levels() {
         let logger = Logger::open().unwrap();
-        let nullw = NullWriter;
-        logger.set_log_writer(nullw);
+        logger.set_log_writer(NullWriter);
         log::error!("error");
         log::warn!("warn");
         log::info!("info");
