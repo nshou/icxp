@@ -15,7 +15,7 @@ async fn main() {
 
     let _listener = UnixSocketListener::listen(&c).unwrap();
 
-    let logger = Logger::open().unwrap();
+    let mut logger = Logger::open().unwrap();
     logger.set_log_writer(NullWriter);
     log::error!("error");
 

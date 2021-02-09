@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use chrono::Local;
 use log::{LevelFilter, Metadata, Record, SetLoggerError};
 use tokio::sync::broadcast::{self, Receiver, Sender};
+use tokio::task::JoinHandle;
 
 const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::Error;
 const LOG_LEVEL_ENV_KEY: &str = "ICXPD_LOG_LEVEL";
@@ -33,6 +34,7 @@ impl From<SetLoggerError> for LoggerError {
 
 pub struct Logger {
     publisher: Sender<String>,
+    writers: Vec<(String, u64, JoinHandle<i32>)>,
 }
 
 impl Logger {
@@ -55,15 +57,18 @@ impl Logger {
         log::set_max_level(level);
         log::set_boxed_logger(Box::new(ldr))?;
 
-        Ok(Logger { publisher })
+        Ok(Logger {
+            publisher,
+            writers: Vec::new(),
+        })
     }
 
-    pub fn set_log_writer(&self, writer: (impl LogWriter + 'static)) {
+    pub fn set_log_writer(&mut self, writer: (impl LogWriter + 'static)) {
         let name = writer.get_writer_name();
         let timeout = writer.get_join_timeout_millis();
         let receiver = self.publisher.subscribe();
         let handle = tokio::spawn(writer.begin_subscribe(receiver));
-        //TODO: keep name, timeout, handle in Vector
+        self.writers.push((name, timeout, handle));
     }
 
     //TODO: close()
