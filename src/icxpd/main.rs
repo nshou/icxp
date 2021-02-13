@@ -13,11 +13,14 @@ async fn main() {
 
     fs::create_dir_all(c.get_work_dir().unwrap()).unwrap();
 
-    let _listener = UnixSocketListener::listen(&c).unwrap();
+    let listener = UnixSocketListener::listen(&c).unwrap();
 
     let mut logger = Logger::open().unwrap();
     logger.set_log_writer(NullWriter);
     log::error!("error");
+    logger.close().await;
+
+    listener.shutdown().await.ok();
 
     //TODO: heartbeat loop on current thread
     // immediately exits for now
