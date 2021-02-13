@@ -97,7 +97,6 @@ impl Logger {
         self.publisher
             .send(LoggerMessage::Ctl(LoggerCtl::Close))
             .ok();
-        //TODO: in case Close msg gets lagged
         for writer in self.writers.iter_mut() {
             let mut errmsg = None;
             match time::timeout(Duration::from_millis(writer.1), &mut writer.2).await {
@@ -117,6 +116,7 @@ impl Logger {
                 },
                 Err(_) => {
                     // tokio::time::error::Elapsed
+                    // `Close` could be dropped due to lagging
                     errmsg = Some(String::from(
                         "was forced to shut down due to timeout for closing",
                     ));
