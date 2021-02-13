@@ -99,41 +99,37 @@ impl Logger {
             .ok();
         //TODO: in case Close msg gets lagged
         for writer in self.writers.iter_mut() {
+            let mut errmsg = None;
             match time::timeout(Duration::from_millis(writer.1), &mut writer.2).await {
                 Ok(joined) => match joined {
                     Ok(retcode) => {
                         if retcode != 0 {
-                            eprintln!(
-                                "{} - [{}] `{}` {} ({})",
-                                Local::now().format("%F_%T%.6f"),
-                                "WARN",
-                                writer.0,
-                                "returned non-zero when closed",
-                                retcode,
-                            );
+                            errmsg =
+                                Some(format!("{} ({})", "returned non-zero when closed", retcode));
                         }
                     }
                     Err(_) => {
                         // tokio::task::JoinError
-                        eprintln!(
-                            "{} - [{}] `{}` {}",
-                            Local::now().format("%F_%T%.6f"),
-                            "WARN",
-                            writer.0,
-                            "has already been aborted while trying to close"
-                        );
+                        errmsg = Some(String::from(
+                            "has already been aborted while trying to close",
+                        ));
                     }
                 },
                 Err(_) => {
                     // tokio::time::error::Elapsed
-                    eprintln!(
-                        "{} - [{}] `{}` {}",
-                        Local::now().format("%F_%T%.6f"),
-                        "WARN",
-                        writer.0,
-                        "was forced to shut down due to timeout for closing"
-                    );
+                    errmsg = Some(String::from(
+                        "was forced to shut down due to timeout for closing",
+                    ));
                 }
+            }
+            if let Some(msg) = errmsg {
+                eprintln!(
+                    "{} - [{}] `{}` {}",
+                    Local::now().format("%F_%T%.6f"),
+                    "WARN",
+                    writer.0,
+                    msg
+                );
             }
         }
     }
