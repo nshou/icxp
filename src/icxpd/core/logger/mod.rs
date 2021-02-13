@@ -2,7 +2,7 @@ pub mod null_writer;
 
 use async_trait::async_trait;
 use chrono::Local;
-use log::{LevelFilter, Metadata, Record, SetLoggerError};
+use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
 use tokio::sync::broadcast::{self, Receiver, Sender};
 use tokio::task::JoinHandle;
 
@@ -17,7 +17,7 @@ pub trait LogWriter {
     fn get_join_timeout_millis(&self) -> u64 {
         1000
     }
-    async fn begin_subscribe(self, receiver: Receiver<String>) -> i32;
+    async fn begin_subscribe(self, receiver: Receiver<LoggerMessage>) -> i32;
 }
 
 #[derive(Debug)]
@@ -32,8 +32,29 @@ impl From<SetLoggerError> for LoggerError {
     }
 }
 
+#[derive(Clone)]
+pub enum LoggerMessage {
+    Log(LoggerPayload),
+    Ctl(LoggerCtl),
+}
+
+#[derive(Clone)]
+pub enum LoggerCtl {
+    Close,
+}
+
+#[derive(Clone)]
+pub struct LoggerPayload {
+    level: Level,
+    target: String,
+    args: String,
+    module_path: Option<String>,
+    file: Option<String>,
+    line: Option<u32>,
+}
+
 pub struct Logger {
-    publisher: Sender<String>,
+    publisher: Sender<LoggerMessage>,
     writers: Vec<(String, u64, JoinHandle<i32>)>,
 }
 
@@ -76,14 +97,12 @@ impl Logger {
     // should wait for all writers to be closed -> need to keep JoinHandles
 }
 
-//TODO: broadcast enum (log, ctl, etc), not String
-
 struct LogDistributor {
-    sender: Sender<String>,
+    sender: Sender<LoggerMessage>,
 }
 
 impl LogDistributor {
-    fn new(sender: Sender<String>) -> LogDistributor {
+    fn new(sender: Sender<LoggerMessage>) -> LogDistributor {
         LogDistributor { sender }
     }
 }
@@ -96,16 +115,15 @@ impl log::Log for LogDistributor {
     fn flush(&self) {}
 
     fn log(&self, record: &Record) {
-        let line = format!(
-            "{} - [{}] {}:{} {} - {}",
-            Local::now().format("%F_%T%.6f"),
-            record.level(),
-            record.file().unwrap_or("?file?"),
-            record.line().unwrap_or(0),
-            record.target(),
-            record.args()
-        );
-        if self.sender.send(line).is_err() {
+        let payload = LoggerMessage::Log(LoggerPayload {
+            level: record.level(),
+            target: String::from(record.target()),
+            args: record.args().to_string(),
+            module_path: record.module_path().map(|m| String::from(m)),
+            file: record.file().map(|f| String::from(f)),
+            line: record.line(),
+        });
+        if self.sender.send(payload).is_err() {
             let eline = format!(
                 "{} - [{}] {}",
                 Local::now().format("%F_%T%.6f"),

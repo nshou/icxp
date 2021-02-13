@@ -1,4 +1,4 @@
-use crate::core::logger::LogWriter;
+use crate::core::logger::{LogWriter, LoggerMessage};
 use async_trait::async_trait;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
@@ -11,7 +11,7 @@ impl LogWriter for NullWriter {
         String::from("Null Writer")
     }
 
-    async fn begin_subscribe(self, mut receiver: Receiver<String>) -> i32 {
+    async fn begin_subscribe(self, mut receiver: Receiver<LoggerMessage>) -> i32 {
         loop {
             match receiver.recv().await {
                 Err(RecvError::Closed) => break,
