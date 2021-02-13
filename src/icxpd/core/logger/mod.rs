@@ -23,7 +23,6 @@ pub trait LogWriter {
 
 #[derive(Debug)]
 pub enum LoggerError {
-    //TODO: more types with 'from' traits
     Generic(String),
 }
 
