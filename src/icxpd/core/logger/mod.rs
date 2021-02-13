@@ -104,11 +104,11 @@ impl Logger {
                     Ok(retcode) => {
                         if retcode != 0 {
                             eprintln!(
-                                "{} - [{}] {} {} ({})",
+                                "{} - [{}] `{}` {} ({})",
                                 Local::now().format("%F_%T%.6f"),
                                 "WARN",
                                 writer.0,
-                                "returned non-zero",
+                                "returned non-zero when closed",
                                 retcode,
                             );
                         }
@@ -116,22 +116,22 @@ impl Logger {
                     Err(_) => {
                         // tokio::task::JoinError
                         eprintln!(
-                            "{} - [{}] {} {}",
+                            "{} - [{}] `{}` {}",
                             Local::now().format("%F_%T%.6f"),
                             "WARN",
                             writer.0,
-                            "has already been aborted"
+                            "has already been aborted while trying to close"
                         );
                     }
                 },
                 Err(_) => {
                     // tokio::time::error::Elapsed
                     eprintln!(
-                        "{} - [{}] {} {}",
+                        "{} - [{}] `{}` {}",
                         Local::now().format("%F_%T%.6f"),
                         "WARN",
                         writer.0,
-                        "was forced to shut down due to timeout"
+                        "was forced to shut down due to timeout for closing"
                     );
                 }
             }
