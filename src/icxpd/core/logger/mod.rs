@@ -5,6 +5,7 @@ use chrono::Local;
 use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
 use tokio::sync::broadcast::{self, Receiver, Sender};
 use tokio::task::JoinHandle;
+use tokio::time::{self, Duration};
 
 const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::Error;
 const LOG_LEVEL_ENV_KEY: &str = "ICXPD_LOG_LEVEL";
@@ -92,9 +93,50 @@ impl Logger {
         self.writers.push((name, timeout, handle));
     }
 
-    //TODO: close()
-    // closing: All sender dropped -> next recv() -> RecvError::Closed -> exit inf. loop and end thread
-    // should wait for all writers to be closed -> need to keep JoinHandles
+    pub async fn close(mut self) {
+        self.publisher
+            .send(LoggerMessage::Ctl(LoggerCtl::Close))
+            .ok();
+        //TODO: in case Close msg gets lagged
+        for writer in self.writers.iter_mut() {
+            match time::timeout(Duration::from_millis(writer.1), &mut writer.2).await {
+                Ok(joined) => match joined {
+                    Ok(retcode) => {
+                        if retcode != 0 {
+                            eprintln!(
+                                "{} - [{}] {} {} ({})",
+                                Local::now().format("%F_%T%.6f"),
+                                "WARN",
+                                writer.0,
+                                "returned non-zero",
+                                retcode,
+                            );
+                        }
+                    }
+                    Err(_) => {
+                        // tokio::task::JoinError
+                        eprintln!(
+                            "{} - [{}] {} {}",
+                            Local::now().format("%F_%T%.6f"),
+                            "WARN",
+                            writer.0,
+                            "has already been aborted"
+                        );
+                    }
+                },
+                Err(_) => {
+                    // tokio::time::error::Elapsed
+                    eprintln!(
+                        "{} - [{}] {} {}",
+                        Local::now().format("%F_%T%.6f"),
+                        "WARN",
+                        writer.0,
+                        "was forced to shut down due to timeout"
+                    );
+                }
+            }
+        }
+    }
 }
 
 struct LogDistributor {
@@ -115,7 +157,7 @@ impl log::Log for LogDistributor {
     fn flush(&self) {}
 
     fn log(&self, record: &Record) {
-        let payload = LoggerMessage::Log(LoggerPayload {
+        let msg = LoggerMessage::Log(LoggerPayload {
             level: record.level(),
             target: String::from(record.target()),
             args: record.args().to_string(),
@@ -123,14 +165,13 @@ impl log::Log for LogDistributor {
             file: record.file().map(|f| String::from(f)),
             line: record.line(),
         });
-        if self.sender.send(payload).is_err() {
-            let eline = format!(
+        if self.sender.send(msg).is_err() {
+            eprintln!(
                 "{} - [{}] {}",
                 Local::now().format("%F_%T%.6f"),
                 "WARN",
                 "No log writers available"
             );
-            eprintln!("{}", eline);
         }
     }
 }
